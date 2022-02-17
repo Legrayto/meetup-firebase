@@ -43,7 +43,7 @@ export default {
 	},
 
 	actions: {
-		loadMeetups({commit}) {
+		async loadMeetups({commit}) {
 			commit('setLoading', true)
 			const meetups = []
 			const db = getDatabase()
@@ -60,8 +60,9 @@ export default {
 						createId: obj[key].createId
 					})
 				}
-				commit('setLoading', false)
 				commit('setLoadedMeetups', meetups)
+				commit('setLoading', false)
+
 			}, {
 				onlyOnce: true
 			})

@@ -28,6 +28,10 @@ export default {
 	actions: {
 		clearError({commit}) {
 			commit('clearError')
+		},
+		async setLoading({commit}, isLoad) {
+			commit('setLoading', isLoad)
+			return 4
 		}
 	}
 }

@@ -1,5 +1,6 @@
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut  } from "firebase/auth";
 import { getDatabase, ref, push, set, onValue, update, remove} from "firebase/database";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default {
   state: {
@@ -26,6 +27,11 @@ export default {
 
 		setUser(state, newUser) {
 			state.user = newUser
+		},
+		setUserField(state, obj) {
+			for (const field in obj) {
+				state.user[field] = obj[field]
+			}
 		},
 	},
 
@@ -71,8 +77,11 @@ export default {
 				.then(user => {
 					const newUser = {
 						id: user.user.uid,
+						email: user.user.email,
 						registerMeetup: [],
-						fbKeys: {}
+						fbKeys: {},
+						name: '',
+						avatar: ''
 					}
 					commit('setUser', newUser)
 					commit('setLoading', false)
@@ -91,8 +100,11 @@ export default {
 				.then(user => {
 					const newUser = {
 						id: user.user.uid,
+						email: user.user.email,
 						registerMeetup: [],
-						fbKeys: {}
+						fbKeys: {},
+						name: '',
+						avatar: ''
 					}
 					commit('setUser', newUser)
 					commit('setLoading', false)
@@ -106,12 +118,20 @@ export default {
 		autoAuth({commit}, user) {
 			commit('setUser', {
 				id: user.uid,
+				email: user.email,
 				registerMeetup: [],
-				fbKeys: {}
+				fbKeys: {},
+				name: '',
+				avatar: ''
 			})
 		},
 
-		fetchUserMeetup({commit, getters}) {
+		async fetchData({dispatch}) {
+			await dispatch('fetchUserMeetup')
+			await dispatch('fetchUserInfo')
+		},
+
+		async fetchUserMeetup({commit, getters}) {
 			commit('setLoading', true)
 			const db = getDatabase()
 			const userMeetupId = []
@@ -122,8 +142,7 @@ export default {
 					userMeetupId.push(obj[key])
 					userMeetupFbKeys[obj[key]] = key
 				}
-				commit('setUser', {
-					id: getters.user.id,
+				commit('setUserField', {
 					registerMeetup: userMeetupId,
 					fbKeys: userMeetupFbKeys
 				})
@@ -131,6 +150,105 @@ export default {
 			}, {
 				onlyOnce: true
 			})
+		},
+
+
+		async fetchUserInfo({commit, getters}) {
+			commit('setLoading', true)
+
+			const db = getDatabase()
+
+			onValue(ref(db, `/users/${getters.user.id}/info`), data => {
+				const info = data.val()
+				const profile = {
+					name: info?.name || '',
+					avatar: info?.avatar || ''
+				}
+				commit('setUserField', profile)
+				commit('setLoading', false)
+			}, {
+				onlyOnce: true
+			})
+		},
+
+		// async fetchUserData({commit, dispatch, getters}) {
+		// 	// commit('setLoading', true)
+		// 	const db = getDatabase()
+		// 	const userMeetupId = []
+		// 	const userMeetupFbKeys = {}
+
+		// 	onValue(ref(db, `/users/${getters.user.id}`), data => {
+		// 		const obj = data.val()
+		// 		const meetup = obj.registrations
+		// 		const userInfo = obj.info
+
+		// 		for (let key in meetup) {
+		// 			userMeetupId.push(meetup[key])
+		// 			userMeetupFbKeys[meetup[key]] = key
+		// 		}
+
+		// 		const res = {
+		// 			registerMeetup: userMeetupId,
+		// 			fbKeys: userMeetupFbKeys,
+		// 			name: userInfo.name || {},
+		// 			avatar: userInfo.avatar || ''
+		// 		}
+
+		// 		commit('setUser', {
+		// 			id: getters.user.id,
+		// 			email: getters.user.id,
+		// 			...res
+		// 		})
+		// 		// commit('setLoading', false)
+		// 	})
+		// },
+
+		// async fetchUserMeetup({getters}) {
+		// 	const db = getDatabase()
+		// 	const userMeetupId = []
+		// 	const userMeetupFbKeys = {}
+		// 	onValue(ref(db, `/users/${getters.user.id}/registrations`), data => {
+		// 		const obj = data.val()
+		// 		for (let key in obj) {
+		// 			userMeetupId.push(obj[key])
+		// 			userMeetupFbKeys[obj[key]] = key
+		// 		}
+		// 	}, {
+		// 		onlyOnce: true
+		// 	})
+		// 	return {
+		// 				registerMeetup: userMeetupId,
+		// 				fbKeys: userMeetupFbKeys
+		// 	}
+		// },
+
+
+		async editUserInfo({commit, getters}, info) {
+			commit('setLoading', true)
+			const db = getDatabase()
+			const storage = getStorage()
+			const updates = {}
+			const profileName = info.name
+			const profileAvatarFile = info.avatar
+			const editInfo = {}
+
+			updates['/users/' + getters.user.id + '/info/name/'] = profileName
+			editInfo.name = profileName
+
+			if (profileAvatarFile) {
+
+					const fileName = profileAvatarFile.name
+					const exp = fileName.slice(fileName.lastIndexOf('.'))
+					const fileUrl = 'users/' + getters.user.id + exp
+					const fileMeta = await uploadBytes(sRef(storage, fileUrl), profileAvatarFile)
+					const avatarUrl = await getDownloadURL(sRef(storage, fileMeta.metadata.fullPath))
+
+					updates['/users/' + getters.user.id + '/info/avatar'] = avatarUrl
+					editInfo.avatar = avatarUrl
+			}
+			await update(ref(db), updates)
+			commit('setUserField', editInfo)
+			commit('setLoading', false)
 		},
 
 		logout({commit}) {
