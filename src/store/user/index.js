@@ -152,7 +152,6 @@ export default {
 			})
 		},
 
-
 		async fetchUserInfo({commit, getters}) {
 			commit('setLoading', true)
 
@@ -170,58 +169,6 @@ export default {
 				onlyOnce: true
 			})
 		},
-
-		// async fetchUserData({commit, dispatch, getters}) {
-		// 	// commit('setLoading', true)
-		// 	const db = getDatabase()
-		// 	const userMeetupId = []
-		// 	const userMeetupFbKeys = {}
-
-		// 	onValue(ref(db, `/users/${getters.user.id}`), data => {
-		// 		const obj = data.val()
-		// 		const meetup = obj.registrations
-		// 		const userInfo = obj.info
-
-		// 		for (let key in meetup) {
-		// 			userMeetupId.push(meetup[key])
-		// 			userMeetupFbKeys[meetup[key]] = key
-		// 		}
-
-		// 		const res = {
-		// 			registerMeetup: userMeetupId,
-		// 			fbKeys: userMeetupFbKeys,
-		// 			name: userInfo.name || {},
-		// 			avatar: userInfo.avatar || ''
-		// 		}
-
-		// 		commit('setUser', {
-		// 			id: getters.user.id,
-		// 			email: getters.user.id,
-		// 			...res
-		// 		})
-		// 		// commit('setLoading', false)
-		// 	})
-		// },
-
-		// async fetchUserMeetup({getters}) {
-		// 	const db = getDatabase()
-		// 	const userMeetupId = []
-		// 	const userMeetupFbKeys = {}
-		// 	onValue(ref(db, `/users/${getters.user.id}/registrations`), data => {
-		// 		const obj = data.val()
-		// 		for (let key in obj) {
-		// 			userMeetupId.push(obj[key])
-		// 			userMeetupFbKeys[obj[key]] = key
-		// 		}
-		// 	}, {
-		// 		onlyOnce: true
-		// 	})
-		// 	return {
-		// 				registerMeetup: userMeetupId,
-		// 				fbKeys: userMeetupFbKeys
-		// 	}
-		// },
-
 
 		async editUserInfo({commit, getters}, info) {
 			commit('setLoading', true)
