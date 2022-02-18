@@ -20,7 +20,6 @@ import RegisteredMeetup from "./components/registered/RegisteredMeetup.vue"
 //import { getAnalytics } from "firebase/analytics";
 
 Vue.config.productionTip = false
-Vue.config.devtools = true
 
 Vue.filter('date', DateFilter)
 Vue.component('app-alert', AlertCmp)
