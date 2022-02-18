@@ -21,6 +21,7 @@
           <app-edit-profile
             v-if="isNewUser"
             :isNewUser="true"
+            :user="{ email: user.email }"
           ></app-edit-profile>
 
           <v-card v-if="!isNewUser">
@@ -39,7 +40,11 @@
                   </v-avatar>
                   <v-spacer></v-spacer>
                   <app-edit-profile
-                    :user="{ name: user.name, avatar: user.avatar }"
+                    :user="{
+                      name: user.name,
+                      avatar: user.avatar,
+                      email: user.email,
+                    }"
                   ></app-edit-profile>
                 </v-col>
               </v-row>
@@ -72,7 +77,7 @@ export default {
       return this.$store.getters.user;
     },
     isNewUser() {
-      return !this.loaging && !this.user.avatar && !this.user.name;
+      return !this.user.avatar && !this.user.name;
     },
   },
 };

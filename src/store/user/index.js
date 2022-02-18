@@ -1,4 +1,4 @@
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut  } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateEmail, updateProfile, reauthenticateWithCredential, EmailAuthProvider  } from "firebase/auth";
 import { getDatabase, ref, push, set, onValue, update, remove} from "firebase/database";
 import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
@@ -69,11 +69,11 @@ export default {
 				})
 		},
 
-		sighUpUser({commit}, user) {
+		sighUpUser({commit}, userData) {
 			commit('setLoading', true)
 			commit('clearError')
 			const auth = getAuth()
-			createUserWithEmailAndPassword(auth, user.email, user.password)
+			createUserWithEmailAndPassword(auth, userData.email, userData.password)
 				.then(user => {
 					const newUser = {
 						id: user.user.uid,
@@ -83,6 +83,7 @@ export default {
 						name: '',
 						avatar: ''
 					}
+					localStorage.setItem('userPass', `${userData.password}`)
 					commit('setUser', newUser)
 					commit('setLoading', false)
 				})
@@ -92,20 +93,24 @@ export default {
 				})
 		},
 
-		sighInUser({commit}, user) {
+		sighInUser({commit, dispatch}, userData) {
 			commit('setLoading', true)
 			commit('clearError')
 			const auth = getAuth()
-			signInWithEmailAndPassword(auth, user.email, user.password)
+			signInWithEmailAndPassword(auth, userData.email, userData.password)
 				.then(user => {
 					const newUser = {
 						id: user.user.uid,
 						email: user.user.email,
 						registerMeetup: [],
 						fbKeys: {},
-						name: '',
-						avatar: ''
+						name: user.user.displayName,
+						avatar: user.user.photoURL
 					}
+					localStorage.setItem('userPass', `${userData.password}`)
+					return newUser
+				})
+				.then((newUser) => {
 					commit('setUser', newUser)
 					commit('setLoading', false)
 				})
@@ -155,32 +160,33 @@ export default {
 		async fetchUserInfo({commit, getters}) {
 			commit('setLoading', true)
 
+			const auth = getAuth()
+			const user = auth.currentUser
 			const db = getDatabase()
 
-			onValue(ref(db, `/users/${getters.user.id}/info`), data => {
-				const info = data.val()
-				const profile = {
-					name: info?.name || '',
-					avatar: info?.avatar || ''
-				}
-				commit('setUserField', profile)
-				commit('setLoading', false)
-			}, {
-				onlyOnce: true
-			})
+			const obj = {
+				name: user?.displayName || '',
+				avatar: user?.photoURL || '',
+			}
+			commit('setUserField', obj)
+			commit('setLoading', false)
 		},
 
 		async editUserInfo({commit, getters}, info) {
 			commit('setLoading', true)
-			const db = getDatabase()
-			const storage = getStorage()
-			const updates = {}
-			const profileName = info.name
-			const profileAvatarFile = info.avatar
-			const editInfo = {}
 
-			updates['/users/' + getters.user.id + '/info/name/'] = profileName
-			editInfo.name = profileName
+			const auth = getAuth()
+			const user = auth.currentUser
+
+			const storage = getStorage()
+			const profileAvatarFile = info.avatar
+			const profileEmail = info.email
+			const reqInfo = {
+				displayName: info.name
+			}
+			const editInfo = {
+				name: info.name
+			}
 
 			if (profileAvatarFile) {
 
@@ -189,13 +195,47 @@ export default {
 					const fileUrl = 'users/' + getters.user.id + exp
 					const fileMeta = await uploadBytes(sRef(storage, fileUrl), profileAvatarFile)
 					const avatarUrl = await getDownloadURL(sRef(storage, fileMeta.metadata.fullPath))
-
-					updates['/users/' + getters.user.id + '/info/avatar'] = avatarUrl
-					editInfo.avatar = avatarUrl
+					
+					reqInfo.photoURL = avatarUrl
+					editInfo.avatar = avatarUrl 
 			}
-			await update(ref(db), updates)
-			commit('setUserField', editInfo)
-			commit('setLoading', false)
+
+			if (profileEmail) {
+				await this.dispatch('updateEmail', {user, profileEmail})
+			}
+
+			updateProfile(user, reqInfo)
+				.then(() => {
+					commit('setUserField', editInfo)
+				})
+				.catch(err => console.log(err))
+				.finally(() => {
+					commit('setLoading', false)
+
+				})
+
+		},
+
+		async updateEmail({commit}, {user, profileEmail}) {
+			return updateEmail(user, profileEmail)
+					.then(() => {
+						commit('setUserField', {email : profileEmail})
+					})
+					.catch((err) => {
+						const userPass = localStorage.getItem('userPass')
+						const credential = EmailAuthProvider.credential(
+							user.email,
+							userPass
+						);
+						reauthenticateWithCredential(user, credential)
+							.then(() => {
+								commit('setUserField', {email :profileEmail})
+							})
+							.catch(err => {
+								console.log(err)
+							})
+					})
+					
 		},
 
 		logout({commit}) {
@@ -204,6 +244,7 @@ export default {
 				.catch((error) => {
 					console.log(error)
 				})
+			localStorage.removeItem('userPass')
 			commit('setUser', null)
 		}
 	}

@@ -2,7 +2,7 @@
   <v-dialog v-model="dialog" persistent max-width="600">
     <template v-slot:activator="{ on, attrs }">
       <v-btn color="red" dark block v-bind="attrs" v-on="on" v-if="isNewUser">
-        Edit Profile
+        Add Profile
       </v-btn>
       <v-btn v-else v-bind="attrs" v-on="on" text>
         <v-icon>mdi-pencil</v-icon>
@@ -51,6 +51,13 @@
                 :rules="rules"
                 clearable
               ></v-text-field>
+              <v-text-field
+                label="Email"
+                v-if="!isNewUser"
+                v-model="editEmail"
+                :rules="rulesEmail"
+                clearable
+              ></v-text-field>
             </v-form>
           </v-col>
         </v-row>
@@ -91,9 +98,20 @@ export default {
         (v) => !!v || "Field is required",
         (v) => /^([a-z]+)$/i.test(v) || "Field contains only letters",
       ],
+      rulesEmail: [
+        (v) => !!v || "Field is required",
+        (v) => /.+@.+\..+/.test(v) || "E-mail must be valid",
+      ],
+      rulesLogin: [
+        (v) => !!v || "Field is required",
+        (v) =>
+          /^[a-zA-Z][0-9_a-zA-z]*[a-zA-z0-9]+$/.test(v) ||
+          "Login must be valid",
+      ],
       editFirstName: "",
       editLastName: "",
       editMiddleName: "",
+      editEmail: "",
       fileAvatar: null,
       urlAvatar: "",
     };
@@ -114,6 +132,10 @@ export default {
       info.name = fullName;
       info.avatar = this.fileAvatar;
 
+      if (this.editEmail !== this.user.email) {
+        info.email = this.editEmail;
+      }
+
       this.$store.dispatch("editUserInfo", info);
       this.dialog = false;
     },
@@ -121,7 +143,9 @@ export default {
     editOldProfile() {
       const notCange =
         this.fullName() === this.user.name &&
-        this.urlAvatar === this.user.avatar;
+        this.urlAvatar === this.user.avatar &&
+        this.editEmail === this.user.email &&
+        this.editLogin === this.user.login;
 
       if (notCange) {
         this.dialog = false;
@@ -130,7 +154,12 @@ export default {
 
       const info = {};
       const fullName = this.fullName();
+
       info.name = fullName;
+
+      if (this.editEmail !== this.user.email) {
+        info.email = this.editEmail;
+      }
 
       if (this.urlAvatar !== this.user.avatar) {
         info.avatar = this.fileAvatar;
@@ -170,6 +199,7 @@ export default {
       [this.editFirstName, this.editLastName, this.editMiddleName] =
         this.user.name.split(" ");
       this.urlAvatar = this.user.avatar;
+      this.editEmail = this.user.email;
     }
   },
 };
